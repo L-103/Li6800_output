@@ -28,3 +28,8 @@ if (!require("plyr")) {
   install.packages("plyr")
   library("plyr")
 }
+
+if (!require("RColorBrewer")) {
+  install.packages("RColorBrewer")
+  library("RColorBrewer")
+}

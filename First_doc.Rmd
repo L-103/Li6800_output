@@ -1,6 +1,5 @@
 ---
-title: "LI6800 output graphs"
-# author: "Loïc Talide"
+title: "LI6800 output analysis"
 output:
   flexdashboard::flex_dashboard:
     orientation: columns
@@ -11,14 +10,11 @@ output:
 runtime: shiny
 ---
 
-```{r include = FALSE}
-# Source the script to verify package installation
+```{r CHECK_LIBRARIES, message=FALSE, include=FALSE}
 source("Required_libraries.R")
 ```
 
-<!-- LIBRARIES + DATA SELECTION -->
-```{r, include=FALSE }
-
+```{r DATA _SELECTION, message=FALSE, include=FALSE}
 selected_file <- file.choose()
 header_lines <- readLines(selected_file, n = 62)
 data <- as.data.frame(read.delim(selected_file, header = FALSE, sep = "\t", skip = 64, fill = TRUE))
@@ -28,55 +24,17 @@ data <- data[, -c(2,4,5,6,7)]
 data[] <- lapply(data, as.numeric)
 ```
 
-Export
-=======================================================================
-
-```{r}
-column_selector <- selectInput(
-  inputId = "columns",
-  label = "Select columns to export:",
-  choices = colnames(data),
-  selected = NULL,
-  multiple = TRUE  
-)
-
-output$exported_data <- downloadHandler(
-  filename = function() {
-    paste("exported_data_", Sys.Date(), ".csv", sep = "")
-  },
-  content = function(file) {
-    selected_data <- data[, input$columns, drop = FALSE]
-    write.csv(selected_data, file, row.names = FALSE, sep = ",")
-  }
-)
-
-tabPanel("Export Data",
-         column(6,
-                h3("Export Data"),
-                # p("Select the columns you want to export:"),
-                column_selector,
-                downloadButton("exported_data", "Download")
-         )
-)
-
-```
-
-
-Main graph
+Main_graph
 =======================================================================
 
 Column {.sidebar}
 -----------------------------------------------------------------------
 
-<!-- SELECT X AXIS + DESCRIPTION -->
-```{r}
+```{r X_AXIS, message=FALSE}
 selectInput('xcol1', 
             HTML('<span style="font-size: 16px;"><b>X  Axis Variable</b></span>'), 
             names(data))
-```
 
-<!-- SLIDER FOR XMIN XMAX -->
-```{r}
 sliderInput('xmin', 'X Min Value', min = min(data[[1]]), max = max(data[[1]]), value = min(data[[1]]))
 sliderInput('xmax', 'X Max Value', min = min(data[[1]]), max = max(data[[1]]), value = max(data[[1]]))
 
@@ -94,19 +52,13 @@ observeEvent(input$xcol1, {
 })
 ```
 
-
-<!-- SELECT Y AXIS + DESCRIPTION -->
-```{r}
+```{r Y_AXIS, message=FALSE}
     
 selectInput('ycol1', 
             HTML('<span style="font-size: 16px;"><b>Y  Axis Variable</b></span>'), 
             names(data),
             selected=names(data)[[3]])
 
-```
-
-<!-- SLIDER FOR YMIN YMAX -->
-```{r}
 sliderInput('ymin', 'Y Min Value', min = min(data[[3]]), max = max(data[[3]]), value = min(data[[3]]))
 sliderInput('ymax', 'Y Max Value', min = min(data[[3]]), max = max(data[[3]]), value = max(data[[3]]))
 
@@ -128,13 +80,10 @@ observeEvent(input$ycol1, {
 Column
 -----------------------------------------------------------------------
 
-
-<!-- DRAW THE GRAPH -->
-```{r}
+```{r GRAPH, message=FALSE}
 selectedData1 <- reactive(
   data[, c(input$xcol1, input$ycol1)],
 )
-
 
 renderPlotly({
   par(mar = c(5.1, 4.1, 0, 1))
@@ -143,13 +92,13 @@ renderPlotly({
     theme_bw() +
     ylim(input$ymin, input$ymax) +
     xlim(input$xmin, input$xmax)
-
+  
   ggplotly(p)
        })
 ```
 
-<!-- DOWNLOAD DATA -->
-``` {r}
+If you want to download only the data used to generate this graph, press on the "Download" button below.
+```{r DOWNLOAD_DATA, message=FALSE}
 downloadHandler(
   filename = function() {
       filename <- input$file$name
@@ -164,12 +113,44 @@ downloadHandler(
 uiOutput("downloadButton")
 
 ```
-Only the data used to generate this graph will be exported (xlimits and ylimits parameters matter as well).
+
+```{r EXTRACT_DATA, message=FALSE}
+column_selector <- selectInput(
+  inputId = "columns",
+  label = "If you want to extract specific columns of your data file:",
+  choices = colnames(data),
+  selected = NULL,
+  multiple = TRUE  
+)
+
+output$exported_data <- downloadHandler(
+  filename = function() {
+    paste("exported_data_", Sys.Date(), ".csv", sep = "")
+  },
+  content = function(file) {
+    selected_data <- data[, input$columns, drop = FALSE]
+    write.csv(selected_data, file, row.names = FALSE, sep = ",")
+  }
+)
+
+tabPanel("Export Data",
+         column(6,
+                h3("Export Data"),
+                column_selector,
+                downloadButton("exported_data", "Download")
+         )
+)
+
+```
+
 
 Informations
 =======================================================================
+
+This part contains the header of your data. Important information to keep.
+
 <div style="overflow-y: scroll; max-height: 300px;">
-```{r}
+```{r HEADER, message=FALSE}
 print(header_lines)
 
 ```
@@ -181,7 +162,10 @@ Controls
 Row
 -----------------------------------------------------------------------
 <!-- TEMPERATURE -->
-```{r}
+```{r message=FALSE}
+
+palette <- brewer.pal(length(unique(data$CategoryVariable)), "Set1")
+
 renderPlotly({
   par(mar = c(5.1, 4.1, 0, 1))
   p <- ggplot(data) +
@@ -212,7 +196,7 @@ renderPlotly({
 **TleafCnd:** leaf temperature measured by thermocouple and used for gas exchange computations.
 
 <!-- LEAK -->
-```{r}
+```{r message=FALSE}
 renderPlotly({
   par(mar = c(5.1, 4.1, 0, 1))
   p <- ggplot(data) +
