@@ -1,30 +1,241 @@
 ---
-title: "First_doc"
-author: "Loïc Talide"
-date: "2024-03-13"
-output: html_document
+title: "LI6800 output graphs"
+# author: "Loïc Talide"
+output:
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    social: NULL
+    source_code: NULL
+    self_contained: TRUE
+    theme: sandstone
+runtime: shiny
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+```{r include = FALSE}
+# Source the script to verify package installation
+source("Required_libraries.R")
 ```
 
-## R Markdown
+<!-- LIBRARIES + DATA SELECTION -->
+```{r, include=FALSE }
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
+selected_file <- file.choose()
+header_lines <- readLines(selected_file, n = 62)
+data <- as.data.frame(read.delim(selected_file, header = FALSE, sep = "\t", skip = 64, fill = TRUE))
+colnames(data) <- paste(data[1,])
+data <- data[-c(1,2),]
+data <- data[, -c(2,4,5,6,7)]
+data[] <- lapply(data, as.numeric)
 ```
 
-## Including Plots
+Export
+=======================================================================
 
-You can also embed plots, for example:
+```{r}
+column_selector <- selectInput(
+  inputId = "columns",
+  label = "Select columns to export:",
+  choices = colnames(data),
+  selected = NULL,
+  multiple = TRUE  
+)
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+output$exported_data <- downloadHandler(
+  filename = function() {
+    paste("exported_data_", Sys.Date(), ".csv", sep = "")
+  },
+  content = function(file) {
+    selected_data <- data[, input$columns, drop = FALSE]
+    write.csv(selected_data, file, row.names = FALSE, sep = ",")
+  }
+)
+
+tabPanel("Export Data",
+         column(6,
+                h3("Export Data"),
+                # p("Select the columns you want to export:"),
+                column_selector,
+                downloadButton("exported_data", "Download")
+         )
+)
+
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+Main graph
+=======================================================================
+
+Column {.sidebar}
+-----------------------------------------------------------------------
+
+<!-- SELECT X AXIS + DESCRIPTION -->
+```{r}
+selectInput('xcol1', 
+            HTML('<span style="font-size: 16px;"><b>X  Axis Variable</b></span>'), 
+            names(data))
+```
+
+<!-- SLIDER FOR XMIN XMAX -->
+```{r}
+sliderInput('xmin', 'X Min Value', min = min(data[[1]]), max = max(data[[1]]), value = min(data[[1]]))
+sliderInput('xmax', 'X Max Value', min = min(data[[1]]), max = max(data[[1]]), value = max(data[[1]]))
+
+
+observeEvent(input$xcol1, {
+  updateSliderInput(session, 'xmin', 'X Min Value',
+                    min = min(data[[input$xcol1]]),
+                    max = max(data[[input$xcol1]]),
+                    value = min(data[[input$xcol1]]))
+
+  updateSliderInput(session, 'xmax', 'X Max Value',
+                    min = min(data[[input$xcol1]]),
+                    max = max(data[[input$xcol1]]),
+                    value = max(data[[input$xcol1]]))
+})
+```
+
+
+<!-- SELECT Y AXIS + DESCRIPTION -->
+```{r}
+    
+selectInput('ycol1', 
+            HTML('<span style="font-size: 16px;"><b>Y  Axis Variable</b></span>'), 
+            names(data),
+            selected=names(data)[[3]])
+
+```
+
+<!-- SLIDER FOR YMIN YMAX -->
+```{r}
+sliderInput('ymin', 'Y Min Value', min = min(data[[3]]), max = max(data[[3]]), value = min(data[[3]]))
+sliderInput('ymax', 'Y Max Value', min = min(data[[3]]), max = max(data[[3]]), value = max(data[[3]]))
+
+
+observeEvent(input$ycol1, {
+  updateSliderInput(session, 'ymin', 'Y Min Value',
+                    min = min(data[[input$ycol1]]),
+                    max = max(data[[input$ycol1]]),
+                    value = min(data[[input$ycol1]]))
+
+  updateSliderInput(session, 'ymax', 'Y Max Value',
+                    min = min(data[[input$ycol1]]),
+                    max = max(data[[input$ycol1]]),
+                    value = max(data[[input$ycol1]]))
+})
+
+```
+
+Column
+-----------------------------------------------------------------------
+
+
+<!-- DRAW THE GRAPH -->
+```{r}
+selectedData1 <- reactive(
+  data[, c(input$xcol1, input$ycol1)],
+)
+
+
+renderPlotly({
+  par(mar = c(5.1, 4.1, 0, 1))
+  p <- ggplot(selectedData1(), aes_string(x=input$xcol1, y=input$ycol1)) +
+    geom_point(shape=20) +
+    theme_bw() +
+    ylim(input$ymin, input$ymax) +
+    xlim(input$xmin, input$xmax)
+
+  ggplotly(p)
+       })
+```
+
+<!-- DOWNLOAD DATA -->
+``` {r}
+downloadHandler(
+  filename = function() {
+      filename <- input$file$name
+      paste(input$xcol1, input$ycol1, ".csv", sep = "_")
+  },
+  content = function(file) {
+    data <- selectedData1()
+    write.csv(data, file, row.names = FALSE)
+  }
+)
+
+uiOutput("downloadButton")
+
+```
+Only the data used to generate this graph will be exported (xlimits and ylimits parameters matter as well).
+
+Informations
+=======================================================================
+<div style="overflow-y: scroll; max-height: 300px;">
+```{r}
+print(header_lines)
+
+```
+</div>
+
+Controls
+=======================================================================
+
+Row
+-----------------------------------------------------------------------
+<!-- TEMPERATURE -->
+```{r}
+renderPlotly({
+  par(mar = c(5.1, 4.1, 0, 1))
+  p <- ggplot(data) +
+    geom_point(aes_string(x = input$xcol1, y = data$TleafEB, color = "'TleafEB'"), shape = 20) +
+    geom_point(aes_string(x = input$xcol1, y = data$TleafCnd, color = "'TleafCnd'"), shape = 20) +
+    geom_point(aes_string(x = input$xcol1, y = data$Tair, color = "'Tair'"), shape = 20) +
+    theme_bw() +
+    xlim(input$xmin, input$xmax) +
+    ylab("Temperature (°C)")
+
+  p <- ggplotly(p)
+
+  p <- p %>%
+    add_trace(y = NULL, x = NULL, mode = "markers", type = "scatter", marker = list(color = "blue"), name = "TleafEB") %>%
+    add_trace(y = NULL, x = NULL, mode = "markers", type = "scatter", marker = list(color = "red"), name = "TleafCnd") %>%
+    add_trace(y = NULL, x = NULL, mode = "markers", type = "scatter", marker = list(color = "green"), name = "Tair") %>%
+    layout(
+      legend = list(
+        x = 0.9, y = 1,  
+        bgcolor = "rgba(0,0,0,0)",  
+        title = list(text = "")  
+      )
+    )
+  p
+})
+```
+**TleafEB:** leaf temperature deduced from energy balance.
+**TleafCnd:** leaf temperature measured by thermocouple and used for gas exchange computations.
+
+<!-- LEAK -->
+```{r}
+renderPlotly({
+  par(mar = c(5.1, 4.1, 0, 1))
+  p <- ggplot(data) +
+    geom_point(aes_string(x = input$xcol1, y = data$Leak, color = "'Leakage from chamber'"), shape = 20) +
+    theme_bw() +
+    xlim(input$xmin, input$xmax) +
+    ylab("µmol.m⁻².s⁻¹")
+
+  p <- ggplotly(p)
+
+  p <- p %>%
+    add_trace(y = NULL, x = NULL, mode = "markers", type = "scatter", marker = list(color = "red"), name = "Leakage from chamber") %>%
+    layout(
+      legend = list(
+        x = 0.9, y = 1,
+        bgcolor = "rgba(0,0,0,0)",
+        title = list(text = "")
+      )
+    )
+  p
+})
+
+
+
+```
+
