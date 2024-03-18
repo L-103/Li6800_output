@@ -17,8 +17,6 @@ runtime: shiny
 ```
 
 
-
-
 ```{r CHECK_LIBRARIES, message=FALSE, include=FALSE}
 source("Required_libraries.R")
 ```
@@ -180,8 +178,6 @@ tabPanel("Export Data",
 
 ```
 
-
-
 Controls
 =======================================================================
 
@@ -245,9 +241,6 @@ renderPlotly({
     )
   p
 })
-
-
-
 ```
 
 Informations
@@ -257,8 +250,15 @@ This part contains the header of your data. Important information to keep.
 
 
 ```{r HEADER, message=FALSE, results='asis'}
+
+
+  
 cat('<div style="overflow-y: scroll; max-height: calc(100vh - 150px);">')
 print(header_lines)
 cat('</div>')
 ```
+
+
+
+
 
