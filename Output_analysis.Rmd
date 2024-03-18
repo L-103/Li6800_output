@@ -10,12 +10,26 @@ output:
 runtime: shiny
 ---
 
+```{r include=FALSE}
+#Improvement Ideas
+
+#Make it possible to directly fetch the file from LICOR instead of transfering
+```
+
+
+
+
 ```{r CHECK_LIBRARIES, message=FALSE, include=FALSE}
 source("Required_libraries.R")
 ```
 
 ```{r DATA _SELECTION, message=FALSE, include=FALSE}
 selected_file <- file.choose()
+dateoffile <- readLines(selected_file, n=2)
+date_line <- dateoffile[2]
+date_string <- strsplit(date_line, "\t")[[1]][2]
+file_date <- as.Date(date_string)
+
 header_lines <- readLines(selected_file, n = 62)
 data <- as.data.frame(read.delim(selected_file, header = FALSE, sep = "\t", skip = 64, fill = TRUE))
 colnames(data) <- paste(data[1,])
@@ -34,9 +48,10 @@ Column {.sidebar}
 -----------------------------------------------------------------------
 
 ```{r X_AXIS, message=FALSE}
+
 selectInput('xcol1', 
             HTML('<span style="font-size: 16px;"><b>X  Axis Variable</b></span>'), 
-            names(data))
+            choices = names(data))
 
 sliderInput('xmin', 'X Min Value', min = min(data[[1]]), max = max(data[[1]]), value = min(data[[1]]))
 sliderInput('xmax', 'X Max Value', min = min(data[[1]]), max = max(data[[1]]), value = max(data[[1]]))
@@ -77,6 +92,14 @@ observeEvent(input$ycol1, {
                     max = max(data[[input$ycol1]]),
                     value = max(data[[input$ycol1]]))
 })
+```
+
+```{r UNITS_BUTTON, message=FALSE}
+actionButton("open_website", "LI-6800 summary of symbols")
+
+observeEvent(input$open_website, {
+  browseURL("https://www.licor.com/env/support/LI-6800/topics/symbols.html")
+})
 
 ```
 
@@ -114,30 +137,21 @@ If you want to download only the data used to generate this graph, press on the 
  )
 
  uiOutput("downloadButton")
-
 ```
 
 
 ```{r EXTRACT_DATA, message=FALSE}
-# column_selector <- selectInput(
-#   inputId = "columns",
-#   label = "If you want to extract specific columns of your data file:",
-#   choices = colnames(data),
-#   selected = c("obs", "elapsed", "E", "A", "Ci"),
-#   multiple = TRUE  
-# )
 column_selector <- tagList(
-  checkboxInput("select_all_columns", "Show advanced parameters in the list of options", FALSE),
+  checkboxInput("select_all_columns", "Show all parameters in the options", FALSE),
   selectInput(
     inputId = "columns",
-    label = "If you want to extract specific columns of your data file:",
+    label = NULL,
     choices = c("obs", "elapsed", "E", "A", "Ci", "gsw", "Fo", "Fm", "Fv/Fm", "Fs", "Fm'","ETR"), 
     selected = NULL,
     multiple = TRUE
   )
 )
 
-# Observe the change in the checkbox and update the choices accordingly
 observeEvent(input$select_all_columns, {
   if (input$select_all_columns) {
     updateSelectInput(session, "columns", choices = colnames(data))
@@ -146,20 +160,15 @@ observeEvent(input$select_all_columns, {
   }
 })
 
-
-
-
-
 output$exported_data <- downloadHandler(
   filename = function() {
-    paste("exported_data_", Sys.Date(), ".csv", sep = "")
+    paste("exported_data_", file_date, ".csv", sep = "")
   },
   content = function(file) {
     selected_data <- data[, input$columns, drop = FALSE]
     write.csv(selected_data, file, row.names = FALSE, sep = ",")
   }
 )
-
 
 tabPanel("Export Data",
          column(6,
@@ -172,17 +181,6 @@ tabPanel("Export Data",
 ```
 
 
-Informations
-=======================================================================
-
-This part contains the header of your data. Important information to keep.
-
-<div style="overflow-y: scroll; max-height: 300px;">
-```{r HEADER, message=FALSE}
-print(header_lines)
-
-```
-</div>
 
 Controls
 =======================================================================
@@ -250,5 +248,17 @@ renderPlotly({
 
 
 
+```
+
+Informations
+=======================================================================
+
+This part contains the header of your data. Important information to keep.
+
+
+```{r HEADER, message=FALSE, results='asis'}
+cat('<div style="overflow-y: scroll; max-height: calc(100vh - 150px);">')
+print(header_lines)
+cat('</div>')
 ```
 
