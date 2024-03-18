@@ -19,9 +19,12 @@ selected_file <- file.choose()
 header_lines <- readLines(selected_file, n = 62)
 data <- as.data.frame(read.delim(selected_file, header = FALSE, sep = "\t", skip = 64, fill = TRUE))
 colnames(data) <- paste(data[1,])
-data <- data[-c(1,2),]
-data <- data[, -c(2,4,5,6,7)]
-data[] <- lapply(data, as.numeric)
+data <- data[-c(1, 2), ]
+columns_to_exclude <- c("time", "date", "hhmmss", "averaging", "TIME")
+data <- data[, !colnames(data) %in% columns_to_exclude]
+suppressWarnings(
+  data[] <- lapply(data, as.numeric)
+)
 ```
 
 Main_graph
@@ -99,29 +102,53 @@ renderPlotly({
 
 If you want to download only the data used to generate this graph, press on the "Download" button below.
 ```{r DOWNLOAD_DATA, message=FALSE}
-downloadHandler(
-  filename = function() {
-      filename <- input$file$name
-      paste(input$xcol1, input$ycol1, ".csv", sep = "_")
-  },
-  content = function(file) {
-    data <- selectedData1()
-    write.csv(data, file, row.names = FALSE)
-  }
-)
+ downloadHandler(
+   filename = function() {
+       filename <- input$file$name
+       paste(input$xcol1, input$ycol1, ".csv", sep = "_")
+   },
+   content = function(file) {
+     data <- selectedData1()
+     write.csv(data, file, row.names = FALSE)
+   }
+ )
 
-uiOutput("downloadButton")
+ uiOutput("downloadButton")
 
 ```
 
+
 ```{r EXTRACT_DATA, message=FALSE}
-column_selector <- selectInput(
-  inputId = "columns",
-  label = "If you want to extract specific columns of your data file:",
-  choices = colnames(data),
-  selected = NULL,
-  multiple = TRUE  
+# column_selector <- selectInput(
+#   inputId = "columns",
+#   label = "If you want to extract specific columns of your data file:",
+#   choices = colnames(data),
+#   selected = c("obs", "elapsed", "E", "A", "Ci"),
+#   multiple = TRUE  
+# )
+column_selector <- tagList(
+  checkboxInput("select_all_columns", "Show advanced parameters in the list of options", FALSE),
+  selectInput(
+    inputId = "columns",
+    label = "If you want to extract specific columns of your data file:",
+    choices = c("obs", "elapsed", "E", "A", "Ci", "gsw", "Fo", "Fm", "Fv/Fm", "Fs", "Fm'","ETR"), 
+    selected = NULL,
+    multiple = TRUE
+  )
 )
+
+# Observe the change in the checkbox and update the choices accordingly
+observeEvent(input$select_all_columns, {
+  if (input$select_all_columns) {
+    updateSelectInput(session, "columns", choices = colnames(data))
+  } else {
+    updateSelectInput(session, "columns", choices = c("obs", "elapsed", "E", "A", "Ci", "gsw", "Fo", "Fm", "Fv/Fm", "Fs", "Fm'","ETR"))
+  }
+})
+
+
+
+
 
 output$exported_data <- downloadHandler(
   filename = function() {
@@ -132,6 +159,7 @@ output$exported_data <- downloadHandler(
     write.csv(selected_data, file, row.names = FALSE, sep = ",")
   }
 )
+
 
 tabPanel("Export Data",
          column(6,
@@ -161,9 +189,10 @@ Controls
 
 Row
 -----------------------------------------------------------------------
+
 <!-- TEMPERATURE -->
 ```{r message=FALSE}
-
+# I should add stability criteria for instance?
 palette <- brewer.pal(length(unique(data$CategoryVariable)), "Set1")
 
 renderPlotly({
