@@ -33,3 +33,8 @@ if (!require("RColorBrewer")) {
   install.packages("RColorBrewer")
   library("RColorBrewer")
 }
+
+if (!require("jsonlite")) {
+  install.packages("jsonlite")
+  library("jsonlite")
+}

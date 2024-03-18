@@ -12,10 +12,9 @@ runtime: shiny
 
 ```{r include=FALSE}
 #Improvement Ideas
-
-#Make it possible to directly fetch the file from LICOR instead of transfering
+#Make it possible to directly fetch the file from LICOR instead of transferring
+#Read fluo curves
 ```
-
 
 ```{r CHECK_LIBRARIES, message=FALSE, include=FALSE}
 source("Required_libraries.R")
@@ -32,12 +31,33 @@ header_lines <- readLines(selected_file, n = 62)
 data <- as.data.frame(read.delim(selected_file, header = FALSE, sep = "\t", skip = 64, fill = TRUE))
 colnames(data) <- paste(data[1,])
 data <- data[-c(1, 2), ]
-columns_to_exclude <- c("time", "date", "hhmmss", "averaging", "TIME")
+columns_to_exclude <- c("time","date", "hhmmss", "averaging")
 data <- data[, !colnames(data) %in% columns_to_exclude]
 suppressWarnings(
   data[] <- lapply(data, as.numeric)
 )
 ```
+
+
+
+```{r TEST_FLUOFILES}
+json_folder <- "C:\\Users\\lcta0001\\OneDrive - Sveriges lantbruksuniversitet\\Skrivbordet\\logs"
+json_files <- list.files(json_folder, pattern = "\\.json$", full.names = TRUE)
+extract_timestamp <- function(file_path) {
+  # Read JSON file
+  json_data <- fromJSON(file_path)
+  
+  # Extract timestamp value
+  timestamp <- json_data$TIMESTAMP
+  
+  # Return timestamp value
+  return(timestamp)
+}
+timestamps <- sapply(json_files, extract_timestamp)
+print(timestamps)
+```
+
+
 
 Main_graph
 =======================================================================
@@ -47,8 +67,8 @@ Column {.sidebar}
 
 ```{r X_AXIS, message=FALSE}
 
-selectInput('xcol1', 
-            HTML('<span style="font-size: 16px;"><b>X  Axis Variable</b></span>'), 
+selectInput('xcol1',
+            HTML('<span style="font-size: 16px;"><b>X  Axis Variable</b></span>'),
             choices = names(data))
 
 sliderInput('xmin', 'X Min Value', min = min(data[[1]]), max = max(data[[1]]), value = min(data[[1]]))
@@ -67,6 +87,8 @@ observeEvent(input$xcol1, {
                     value = max(data[[input$xcol1]]))
 })
 ```
+
+
 
 ```{r Y_AXIS, message=FALSE}
     
@@ -104,7 +126,7 @@ observeEvent(input$open_website, {
 Column
 -----------------------------------------------------------------------
 
-```{r GRAPH, message=FALSE}
+```{r GRAPH, message=FALSE, warning=FALSE}
 selectedData1 <- reactive(
   data[, c(input$xcol1, input$ycol1)],
 )
@@ -175,7 +197,6 @@ tabPanel("Export Data",
                 downloadButton("exported_data", "Download")
          )
 )
-
 ```
 
 Controls
@@ -185,7 +206,7 @@ Row
 -----------------------------------------------------------------------
 
 <!-- TEMPERATURE -->
-```{r message=FALSE}
+```{r message=FALSE, warning=FALSE}
 # I should add stability criteria for instance?
 palette <- brewer.pal(length(unique(data$CategoryVariable)), "Set1")
 
@@ -219,7 +240,7 @@ renderPlotly({
 **TleafCnd:** leaf temperature measured by thermocouple and used for gas exchange computations.
 
 <!-- LEAK -->
-```{r message=FALSE}
+```{r message=FALSE, warning=FALSE}
 renderPlotly({
   par(mar = c(5.1, 4.1, 0, 1))
   p <- ggplot(data) +
@@ -250,9 +271,6 @@ This part contains the header of your data. Important information to keep.
 
 
 ```{r HEADER, message=FALSE, results='asis'}
-
-
-  
 cat('<div style="overflow-y: scroll; max-height: calc(100vh - 150px);">')
 print(header_lines)
 cat('</div>')
