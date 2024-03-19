@@ -43,3 +43,8 @@ if (!require("stringr")) {
   install.packages("stringr")
   library("stringr")
 }
+
+if (!require("readxl")) {
+  install.packages("readxl")
+  library("readxl")
+}
