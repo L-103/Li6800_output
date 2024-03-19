@@ -7,13 +7,13 @@ output:
     source_code: NULL
     self_contained: TRUE
     theme: sandstone
+    quiet: TRUE
 runtime: shiny
 ---
 
 ```{r include=FALSE}
 #Improvement Ideas
-#Make it possible to directly fetch the file from LICOR instead of transferring
-#Read fluo curves
+
 ```
 
 ```{r CHECK_LIBRARIES, message=FALSE, include=FALSE}
@@ -190,52 +190,57 @@ folder_path <- dirname(selected_file)
 date_in_yyyymmdd <- format(as.Date(file_date), "%Y%m%d")
 all_files <- list.files(folder_path)
 xlsx_files <- all_files[str_detect(all_files, date_in_yyyymmdd) & str_detect(all_files, "\\.xlsx$")]
-timestamps <- data.frame(TIME = as.numeric(data$TIME))
 
-b5_values <- list()
-for (file in xlsx_files) {
+if (length(xlsx_files) == 0) {
+  big_dataframe <- data.frame(SECS = numeric(), FLUOR = numeric(), FILE = character())
+} else {
+  timestamps <- data.frame(TIME = as.numeric(data$TIME))
+  
+  b5_values <- list()
+  for (file in xlsx_files) {
     file_path <- file.path(folder_path, file)
     xls_data <- try(readxl::read_excel(file_path), silent = TRUE)
     if(inherits(xls_data, "try-error")) {
-        next
+      next
     }
     b5_value <- as.numeric(xls_data[4, 2])  # Row 5, Column 2 (B)
     b5_values[[file]] <- b5_value
-}
-
-b5_df <- data.frame(File = names(b5_values), B5_Value = unlist(b5_values))
-
-merge_with_precision <- function(df1, df2, by_column, precision = 5) {
-  merged_df <- merge(df1, df2, by = NULL)  # Cartesian product
+  }
   
-  # Filter rows based on precision
-  matched_rows <- abs(merged_df[[by_column[1]]] - merged_df[[by_column[2]]]) <= precision
+  b5_df <- data.frame(File = names(b5_values), B5_Value = unlist(b5_values))
   
-  return(merged_df[matched_rows, ])
-}
-
-result <- merge_with_precision(b5_df, timestamps, by_column = c("B5_Value", "TIME"), precision = 5)
-
-interesting_files <- result$File
-
-
-big_dataframe <- data.frame(SECS = numeric(), FLUOR = numeric(), FILE = character())
-
-# Function to append data from each file to the big dataframe
-append_data <- function(file, folder_path, big_dataframe) {
-  file_path <- file.path(folder_path, file)
-  xls_data <- read_excel(file_path)
+  merge_with_precision <- function(df1, df2, by_column, precision = 5) {
+    merged_df <- merge(df1, df2, by = NULL)  # Cartesian product
+    
+    # Filter rows based on precision
+    matched_rows <- abs(merged_df[[by_column[1]]] - merged_df[[by_column[2]]]) <= precision
+    
+    return(merged_df[matched_rows, ])
+  }
   
-  # Create a new column for file name
-  xls_data$FILE <- file
+  result <- merge_with_precision(b5_df, timestamps, by_column = c("B5_Value", "TIME"), precision = 5)
   
-  # Append data to big dataframe
-  big_dataframe <<- rbind(big_dataframe, xls_data[, c("SECS", "FLUOR", "FILE")])
-}
-
-# Iterate over interesting files and append data to big dataframe
-for (file in interesting_files) {
-  append_data(file, folder_path, big_dataframe)
+  interesting_files <- result$File
+  
+  
+  big_dataframe <- data.frame(SECS = numeric(), FLUOR = numeric(), FILE = character())
+  
+  # Function to append data from each file to the big dataframe
+  append_data <- function(file, folder_path, big_dataframe) {
+    file_path <- file.path(folder_path, file)
+    xls_data <- read_excel(file_path)
+    
+    # Create a new column for file name
+    xls_data$FILE <- file
+    
+    # Append data to big dataframe
+    big_dataframe <<- rbind(big_dataframe, xls_data[, c("SECS", "FLUOR", "FILE")])
+  }
+  
+  # Iterate over interesting files and append data to big dataframe
+  for (file in interesting_files) {
+    append_data(file, folder_path, big_dataframe)
+  }
 }
 
 # Define UI
@@ -295,73 +300,73 @@ Row
 <!-- TEMPERATURE -->
 ```{r message=FALSE, warning=FALSE}
 # I should add stability criteria for instance?
-palette <- brewer.pal(length(unique(data$CategoryVariable)), "Set1")
-
-renderPlotly({
-  par(mar = c(5.1, 4.1, 0, 1))
-  p <- ggplot(data) +
-    geom_point(aes_string(x = input$xcol1, y = data$TleafEB, color = "'TleafEB'"), shape = 20) +
-    geom_point(aes_string(x = input$xcol1, y = data$TleafCnd, color = "'TleafCnd'"), shape = 20) +
-    geom_point(aes_string(x = input$xcol1, y = data$Tair, color = "'Tair'"), shape = 20) +
-    theme_bw() +
-    xlim(input$xmin, input$xmax) +
-    ylab("Temperature (°C)")
-
-  p <- ggplotly(p)
-
-  p <- p %>%
-    add_trace(y = NULL, x = NULL, mode = "markers", type = "scatter", marker = list(color = "blue"), name = "TleafEB") %>%
-    add_trace(y = NULL, x = NULL, mode = "markers", type = "scatter", marker = list(color = "red"), name = "TleafCnd") %>%
-    add_trace(y = NULL, x = NULL, mode = "markers", type = "scatter", marker = list(color = "green"), name = "Tair") %>%
-    layout(
-      legend = list(
-        x = 0.9, y = 1,  
-        bgcolor = "rgba(0,0,0,0)",  
-        title = list(text = "")  
-      )
-    )
-  p
-})
+# palette <- brewer.pal(length(unique(data$CategoryVariable)), "Set1")
+# 
+# renderPlotly({
+#   par(mar = c(5.1, 4.1, 0, 1))
+#   p <- ggplot(data) +
+#     geom_point(aes_string(x = input$xcol1, y = data$TleafEB, color = "'TleafEB'"), shape = 20) +
+#     geom_point(aes_string(x = input$xcol1, y = data$TleafCnd, color = "'TleafCnd'"), shape = 20) +
+#     geom_point(aes_string(x = input$xcol1, y = data$Tair, color = "'Tair'"), shape = 20) +
+#     theme_bw() +
+#     xlim(input$xmin, input$xmax) +
+#     ylab("Temperature (°C)")
+# 
+#   p <- ggplotly(p)
+# 
+#   p <- p %>%
+#     add_trace(y = NULL, x = NULL, mode = "markers", type = "scatter", marker = list(color = "blue"), name = "TleafEB") %>%
+#     add_trace(y = NULL, x = NULL, mode = "markers", type = "scatter", marker = list(color = "red"), name = "TleafCnd") %>%
+#     add_trace(y = NULL, x = NULL, mode = "markers", type = "scatter", marker = list(color = "green"), name = "Tair") %>%
+#     layout(
+#       legend = list(
+#         x = 0.9, y = 1,  
+#         bgcolor = "rgba(0,0,0,0)",  
+#         title = list(text = "")  
+#       )
+#     )
+#   p
+# })
 ```
 **TleafEB:** leaf temperature deduced from energy balance.
 **TleafCnd:** leaf temperature measured by thermocouple and used for gas exchange computations.
 
 <!-- LEAK -->
 ```{r message=FALSE, warning=FALSE}
-renderPlotly({
-  par(mar = c(5.1, 4.1, 0, 1))
-  p <- ggplot(data) +
-    geom_point(aes_string(x = input$xcol1, y = data$Leak, color = "'Leakage from chamber'"), shape = 20) +
-    theme_bw() +
-    xlim(input$xmin, input$xmax) +
-    ylab("µmol.m⁻².s⁻¹")
-
-  p <- ggplotly(p)
-
-  p <- p %>%
-    add_trace(y = NULL, x = NULL, mode = "markers", type = "scatter", marker = list(color = "red"), name = "Leakage from chamber") %>%
-    layout(
-      legend = list(
-        x = 0.9, y = 1,
-        bgcolor = "rgba(0,0,0,0)",
-        title = list(text = "")
-      )
-    )
-  p
-})
+# renderPlotly({
+#   par(mar = c(5.1, 4.1, 0, 1))
+#   p <- ggplot(data) +
+#     geom_point(aes_string(x = input$xcol1, y = data$Leak, color = "'Leakage from chamber'"), shape = 20) +
+#     theme_bw() +
+#     xlim(input$xmin, input$xmax) +
+#     ylab("µmol.m⁻².s⁻¹")
+# 
+#   p <- ggplotly(p)
+# 
+#   p <- p %>%
+#     add_trace(y = NULL, x = NULL, mode = "markers", type = "scatter", marker = list(color = "red"), name = "Leakage from chamber") %>%
+#     layout(
+#       legend = list(
+#         x = 0.9, y = 1,
+#         bgcolor = "rgba(0,0,0,0)",
+#         title = list(text = "")
+#       )
+#     )
+#   p
+# })
 ```
+
 
 Informations
 =======================================================================
 
 This part contains the header of your data. Important information to keep.
-
-
 ```{r HEADER, message=FALSE, results='asis'}
 cat('<div style="overflow-y: scroll; max-height: calc(100vh - 150px);">')
 print(header_lines)
 cat('</div>')
 ```
+
 
 
 
