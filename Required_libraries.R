@@ -38,3 +38,8 @@ if (!require("jsonlite")) {
   install.packages("jsonlite")
   library("jsonlite")
 }
+
+if (!require("stringr")) {
+  install.packages("stringr")
+  library("stringr")
+}

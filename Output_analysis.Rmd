@@ -21,7 +21,8 @@ source("Required_libraries.R")
 ```
 
 ```{r DATA _SELECTION, message=FALSE, include=FALSE}
-selected_file <- file.choose()
+# selected_file <- file.choose()
+selected_file <- "C:\\Users\\lcta0001\\OneDrive - Sveriges lantbruksuniversitet\\Skrivbordet\\logs\\2024-03-14-1420_trainingaci"
 dateoffile <- readLines(selected_file, n=2)
 date_line <- dateoffile[2]
 date_string <- strsplit(date_line, "\t")[[1]][2]
@@ -41,20 +42,39 @@ suppressWarnings(
 
 
 ```{r TEST_FLUOFILES}
-json_folder <- "C:\\Users\\lcta0001\\OneDrive - Sveriges lantbruksuniversitet\\Skrivbordet\\logs"
-json_files <- list.files(json_folder, pattern = "\\.json$", full.names = TRUE)
-extract_timestamp <- function(file_path) {
-  # Read JSON file
-  json_data <- fromJSON(file_path)
-  
-  # Extract timestamp value
-  timestamp <- json_data$TIMESTAMP
-  
-  # Return timestamp value
-  return(timestamp)
+folder_path <- dirname(selected_file)
+date_in_yyyymmdd <- format(as.Date(file_date), "%Y%m%d")
+all_files <- list.files(folder_path)
+xlsx_files <- all_files[str_detect(all_files, date_in_yyyymmdd) & str_detect(all_files, "\\.xlsx$")]
+print(xlsx_files)
+timestamps <- data.frame(TIME = as.numeric(data$TIME))
+
+b5_values <- list()
+for (file in xlsx_files) {
+    file_path <- file.path(folder_path, file)
+    xls_data <- try(readxl::read_excel(file_path), silent = TRUE)
+    if(inherits(xls_data, "try-error")) {
+        next
+    }
+    b5_value <- as.numeric(xls_data[4, 2])  # Row 5, Column 2 (B)
+    b5_values[[file]] <- b5_value
 }
-timestamps <- sapply(json_files, extract_timestamp)
-print(timestamps)
+
+b5_df <- data.frame(File = names(b5_values), B5_Value = unlist(b5_values))
+
+merge_with_precision <- function(df1, df2, by_column, precision = 5) {
+  merged_df <- merge(df1, df2, by = NULL)  # Cartesian product
+  
+  # Filter rows based on precision
+  matched_rows <- abs(merged_df[[by_column[1]]] - merged_df[[by_column[2]]]) <= precision
+  
+  return(merged_df[matched_rows, ])
+}
+
+result <- merge_with_precision(b5_df, timestamps, by_column = c("B5_Value", "TIME"), precision = 5)
+
+
+
 ```
 
 
@@ -95,7 +115,7 @@ observeEvent(input$xcol1, {
 selectInput('ycol1', 
             HTML('<span style="font-size: 16px;"><b>Y  Axis Variable</b></span>'), 
             names(data),
-            selected=names(data)[[3]])
+            selected=names(data)[[4]])
 
 sliderInput('ymin', 'Y Min Value', min = min(data[[3]]), max = max(data[[3]]), value = min(data[[3]]))
 sliderInput('ymax', 'Y Max Value', min = min(data[[3]]), max = max(data[[3]]), value = max(data[[3]]))
