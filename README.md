@@ -35,5 +35,21 @@ I have made this R project in case you want to:
 
 To use it, nothing simpler:
 1. Start Rstudio
+2. The LI6800_output project should already loaded. If not: File > Open Project > Document > Li6800_output > Li6800_output_2.
+3. Click on Run Document
+  - The script should start and quickly ask you to select your file of interest. By default, the directory you will be directed to is the LI6800 log folder itself. Select the raw file (**not the excel!**).
+  - You will have an html page rendered from which you have access to 2 pages: "Main Graph" and "Fluorometer_data". 
 
-Let me know in case you want to add some more functionnalities.
+### Main graph page explanation
+
+- You can choose the value displayed on both axis of the graph. You can also play around with minimum and maximum values displayed. This can be useful in case you have some outliers completely messing up your graph.
+- The LI-6800 Summary of symbols button will bring you to the LICOR webpage explaining all the symbols you will find in the dropdown menus.
+- Below that button is my email address in case you want to discuss about problems, questions or suggestions about all of this.
+- The main graph displays what you want on each axis.
+- The first download button allows you to download only the data displayed on the graph.
+- Export Data: a list of the most useful parameters is available in the dropdown menu. Add as many as you want to get a file you can then open in excel with only those parameters. If you wish to get more parameters, tick the "show all parameters in the options" square and you will have all the parameters available.
+
+### Fluorometer_data page explanation
+- If no flashes were made during that experiment, nothing will be displayed on this second page.
+- Tick which flash you want (the order follows your logs order=
+- Download only flash data by clicking on the button.
