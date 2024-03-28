@@ -1,5 +1,6 @@
 ---
 title: "LI6800 output analysis"
+author: "Loïc Talide"
 output:
   flexdashboard::flex_dashboard:
     orientation: columns
@@ -11,20 +12,21 @@ output:
 runtime: shiny
 ---
 
-```{r include=FALSE}
-#Improvement Ideas
-
-```
 
 ```{r CHECK_LIBRARIES, message=FALSE, include=FALSE}
 source("Required_libraries.R")
 ```
 
-```{r DATA _SELECTION, message=FALSE, include=FALSE}
-selected_file <- file.choose()
-# selected_file <- "C:\\Users\\lcta0001\\OneDrive - Sveriges lantbruksuniversitet\\Skrivbordet\\logs\\2024-03-14-1420_trainingaci"
-# selected_file <- "C:\\Users\\lcta0001\\OneDrive - Sveriges lantbruksuniversitet\\Skrivbordet\\2024-02-27"
+```{r DATA _SELECTION, message=FALSE, warning=FALSE, include=FALSE}
+if (dir.exists("Z:\\logs")) {
+  setwd("Z:\\logs")
+} else if (dir.exists("Y:\\logs")) {
+  setwd("Y:\\logs")
+} else {
+  print("No LI6800 unit connected")
+}
 
+selected_file <- file.choose()
 dateoffile <- readLines(selected_file, n=2)
 date_line <- dateoffile[2]
 date_string <- strsplit(date_line, "\t")[[1]][2]
@@ -72,7 +74,6 @@ observeEvent(input$xcol1, {
 ```
 
 
-
 ```{r Y_AXIS, message=FALSE}
     
 selectInput('ycol1', 
@@ -104,6 +105,8 @@ observeEvent(input$open_website, {
   browseURL("https://www.licor.com/env/support/LI-6800/topics/symbols.html")
 })
 
+HTML('<a href="mailto:loic.talide@slu.se" class="btn btn-primary">loic.talide@slu.se</a>')
+
 ```
 
 Column
@@ -125,6 +128,7 @@ renderPlotly({
   ggplotly(p)
        })
 ```
+
 
 If you want to download only the data used to generate this graph, press on the "Download" button below.
 ```{r DOWNLOAD_DATA, message=FALSE}
@@ -182,10 +186,11 @@ tabPanel("Export Data",
 )
 ```
 
+
 Fluorometer_data
 =======================================================================
 
-```{r TEST_FLUOFILES}
+```{r FLUOFILES}
 folder_path <- dirname(selected_file)
 date_in_yyyymmdd <- format(as.Date(file_date), "%Y%m%d")
 all_files <- list.files(folder_path)
@@ -203,16 +208,15 @@ if (length(xlsx_files) == 0) {
     if(inherits(xls_data, "try-error")) {
       next
     }
-    b5_value <- as.numeric(xls_data[4, 2])  # Row 5, Column 2 (B)
+    b5_value <- as.numeric(xls_data[4, 2])
     b5_values[[file]] <- b5_value
   }
   
   b5_df <- data.frame(File = names(b5_values), B5_Value = unlist(b5_values))
   
   merge_with_precision <- function(df1, df2, by_column, precision = 5) {
-    merged_df <- merge(df1, df2, by = NULL)  # Cartesian product
+    merged_df <- merge(df1, df2, by = NULL)  
     
-    # Filter rows based on precision
     matched_rows <- abs(merged_df[[by_column[1]]] - merged_df[[by_column[2]]]) <= precision
     
     return(merged_df[matched_rows, ])
@@ -225,25 +229,20 @@ if (length(xlsx_files) == 0) {
   
   big_dataframe <- data.frame(SECS = numeric(), FLUOR = numeric(), FILE = character())
   
-  # Function to append data from each file to the big dataframe
   append_data <- function(file, folder_path, big_dataframe) {
     file_path <- file.path(folder_path, file)
     xls_data <- read_excel(file_path)
     
-    # Create a new column for file name
     xls_data$FILE <- file
     
-    # Append data to big dataframe
     big_dataframe <<- rbind(big_dataframe, xls_data[, c("SECS", "FLUOR", "FILE")])
   }
   
-  # Iterate over interesting files and append data to big dataframe
   for (file in interesting_files) {
     append_data(file, folder_path, big_dataframe)
   }
 }
 
-# Define UI
 ui <- fluidPage(
   titlePanel("Select Curves to Display"),
   sidebarLayout(
@@ -259,23 +258,19 @@ ui <- fluidPage(
   )
 )
 
-# Define server logic
 server <- function(input, output) {
   
-  # Filter data based on selected file choices
   filtered_data <- reactive({
     big_dataframe %>%
       filter(FILE %in% input$file_choices)
   })
   
-  # Plotting the data
   output$plot <- renderPlot({
     ggplot(filtered_data(), aes(x = SECS, y = FLUOR, color = FILE)) +
       geom_line() +
       theme_bw() +
       labs(x = "SECS", y = "FLUOR")
   })
-  # Download big_dataframe
   output$downloadData <- downloadHandler(
     filename = function() {
       paste("big_dataframe_", Sys.Date(), ".csv", sep = "")
@@ -285,87 +280,14 @@ server <- function(input, output) {
     })
 }
 
-# Run the application
 shinyApp(ui = ui, server = server)
 
 ```
 
 
-Controls
-=======================================================================
-
-Row
------------------------------------------------------------------------
-
-<!-- TEMPERATURE -->
-```{r message=FALSE, warning=FALSE}
-# I should add stability criteria for instance?
-# palette <- brewer.pal(length(unique(data$CategoryVariable)), "Set1")
-# 
-# renderPlotly({
-#   par(mar = c(5.1, 4.1, 0, 1))
-#   p <- ggplot(data) +
-#     geom_point(aes_string(x = input$xcol1, y = data$TleafEB, color = "'TleafEB'"), shape = 20) +
-#     geom_point(aes_string(x = input$xcol1, y = data$TleafCnd, color = "'TleafCnd'"), shape = 20) +
-#     geom_point(aes_string(x = input$xcol1, y = data$Tair, color = "'Tair'"), shape = 20) +
-#     theme_bw() +
-#     xlim(input$xmin, input$xmax) +
-#     ylab("Temperature (°C)")
-# 
-#   p <- ggplotly(p)
-# 
-#   p <- p %>%
-#     add_trace(y = NULL, x = NULL, mode = "markers", type = "scatter", marker = list(color = "blue"), name = "TleafEB") %>%
-#     add_trace(y = NULL, x = NULL, mode = "markers", type = "scatter", marker = list(color = "red"), name = "TleafCnd") %>%
-#     add_trace(y = NULL, x = NULL, mode = "markers", type = "scatter", marker = list(color = "green"), name = "Tair") %>%
-#     layout(
-#       legend = list(
-#         x = 0.9, y = 1,  
-#         bgcolor = "rgba(0,0,0,0)",  
-#         title = list(text = "")  
-#       )
-#     )
-#   p
-# })
-```
-**TleafEB:** leaf temperature deduced from energy balance.
-**TleafCnd:** leaf temperature measured by thermocouple and used for gas exchange computations.
-
-<!-- LEAK -->
-```{r message=FALSE, warning=FALSE}
-# renderPlotly({
-#   par(mar = c(5.1, 4.1, 0, 1))
-#   p <- ggplot(data) +
-#     geom_point(aes_string(x = input$xcol1, y = data$Leak, color = "'Leakage from chamber'"), shape = 20) +
-#     theme_bw() +
-#     xlim(input$xmin, input$xmax) +
-#     ylab("µmol.m⁻².s⁻¹")
-# 
-#   p <- ggplotly(p)
-# 
-#   p <- p %>%
-#     add_trace(y = NULL, x = NULL, mode = "markers", type = "scatter", marker = list(color = "red"), name = "Leakage from chamber") %>%
-#     layout(
-#       legend = list(
-#         x = 0.9, y = 1,
-#         bgcolor = "rgba(0,0,0,0)",
-#         title = list(text = "")
-#       )
-#     )
-#   p
-# })
-```
 
 
-Informations
-=======================================================================
 
-This part contains the header of your data. Important information to keep.
-```{r HEADER, message=FALSE, results='asis'}
-cat('<div style="overflow-y: scroll; max-height: calc(100vh - 150px);">')
-print(header_lines)
-cat('</div>')
-```
 
 
 
